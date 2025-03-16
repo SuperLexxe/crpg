@@ -3,7 +3,10 @@
     "GameServerManager": {
       "commandName": "Project",
       "environmentVariables": {
-        "CRPG_INSTANCE": "crpg99"
+        "CRPG_INSTANCE": "crpg99",
+        "CRPG_API_KEY": "tototo",
+        "CRPG_API_BASE_URL": "https://localhost:8000",
+        "CRPG_REGION": "Eu"
       }
     }
   }

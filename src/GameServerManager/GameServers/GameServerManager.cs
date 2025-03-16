@@ -1,6 +1,9 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
+using Crpg.Domain.Entities;
 using Crpg.Domain.Entities.Servers;
+using Crpg.GameServerManager.Api;
+using Crpg.GameServerManager.Api.Models;
 using Crpg.GameServerManager.Common;
 using Crpg.GameServerManager.Updater;
 
@@ -15,15 +18,21 @@ public class GameServerManager
         {
             lock (_lock)
             {
-                return _instance ??= new GameServerManager();
+                return _instance ??= new GameServerManager(CrpgClient.Create());
             }
         }
     }
 
+    public CrpgRegion Region { get; set; }
     public Dictionary<GameMode, GameServer> GameServers { get; private set; } = new();
 
-    private GameServerManager()
+    private readonly ICrpgClient _client;
+
+    private GameServerManager(ICrpgClient client)
     {
+        _client = client;
+        string? regionStr = Environment.GetEnvironmentVariable("CRPG_REGION");
+        Region = Enum.TryParse(regionStr, ignoreCase: true, out CrpgRegion region) ? region : CrpgRegion.Eu;
     }
 
     public void InitialiseGameServers()
@@ -45,16 +54,18 @@ public class GameServerManager
         }
     }
 
-    public async Task RunAsync(CancellationToken stoppingToken)
+    public async Task StartAsync(CancellationToken stoppingToken)
     {
         Task monitorSchedulesTask = MonitorSchedules(stoppingToken);
         Task monitorUpdatesTask = MonitorUpdates(stoppingToken);
         Task monitorWindowNames = MonitorWindowNames(stoppingToken);
+        Task monitorUpcomingBattles = MonitorUpcomingBattles(stoppingToken);
         List<Task> tasks = new()
         {
             monitorSchedulesTask,
             monitorUpdatesTask,
             monitorWindowNames,
+            monitorUpcomingBattles,
         };
 
         await Task.WhenAll(tasks);
@@ -153,6 +164,26 @@ public class GameServerManager
             }
 
             await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+        }
+    }
+
+    private async Task MonitorUpcomingBattles(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            CrpgBattle? upcomingBattle = new();
+            var upcomingStrategusBattles = await _client.GetUpcomingStrategusBattles(region: Region);
+            if (upcomingStrategusBattles.Data != null)
+            {
+                upcomingBattle = upcomingStrategusBattles.Data.OrderByDescending(b => b.ScheduledFor).Where(b => b.ScheduledFor - DateTime.UtcNow <= TimeSpan.FromMinutes(30)).FirstOrDefault();
+            }
+
+            if (upcomingBattle != null && upcomingBattle.Instance == null)
+            {
+                var claimedBattle = await _client.ClaimStrategusBattle(new() { BattleId = upcomingBattle.Id, Instance = Environment.GetEnvironmentVariable("CRPG_INSTANCE")! });
+            }
+
+            await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);
         }
     }
 }

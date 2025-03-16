@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
+using Crpg.Domain.Entities.Battles;
 using Crpg.GameServerManager.Api.Exceptions;
 using Crpg.GameServerManager.Api.Models;
 using Newtonsoft.Json;
@@ -52,7 +53,20 @@ internal class HttpCrpgClient : ICrpgClient
         };
     }
 
-    public Task<CrpgResult> GetUpcomingStrategusBattles(CrpgRegion region, CancellationToken cancellationToken = default) => throw new NotImplementedException();
+    public Task<CrpgResult<IList<CrpgBattle>>> GetUpcomingStrategusBattles(CrpgRegion region, CancellationToken cancellationToken = default)
+    {
+        Dictionary<string, string> queryParameters = new(StringComparer.Ordinal)
+        {
+            ["region"] = region.ToString(),
+            ["phase[]"] = BattlePhase.Scheduled.ToString(),
+        };
+        return Get<IList<CrpgBattle>>("strategus/battles", queryParameters, cancellationToken);
+    }
+
+    public Task<CrpgResult<CrpgBattle>> ClaimStrategusBattle(CrpgClaimBattleRequest req, CancellationToken cancellationToken = default)
+    {
+        return Post<CrpgClaimBattleRequest, CrpgBattle>($"strategus/battles/claim", req, cancellationToken);
+    }
 
     public void Dispose() => _httpClient.Dispose();
 

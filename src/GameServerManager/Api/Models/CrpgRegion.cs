@@ -1,7 +1,7 @@
 ﻿namespace Crpg.GameServerManager.Api.Models;
 
 // Copy of Crpg.Domain.Entities.Region.
-internal enum CrpgRegion
+public enum CrpgRegion
 {
     Eu,
     Na,

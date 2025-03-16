@@ -1,4 +1,6 @@
-﻿using Crpg.GameServerManager.Commands;
+﻿using Crpg.GameServerManager.Api;
+using Crpg.GameServerManager.Api.Models;
+using Crpg.GameServerManager.Commands;
 using Crpg.GameServerManager.GameServers;
 
 GameServerManager manager = GameServerManager.Instance;
@@ -7,7 +9,7 @@ manager.InitialiseGameServers();
 CommandProcessor cliProcessor = new();
 
 using var cts = new CancellationTokenSource();
-Task runManagerTask = manager.RunAsync(cts.Token);
+Task runManagerTask = manager.StartAsync(cts.Token);
 Task runCliTask = cliProcessor.StartAsync(cts.Token);
 
 await Task.WhenAll(runManagerTask, runCliTask);
